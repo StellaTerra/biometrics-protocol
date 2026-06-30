@@ -1,0 +1,39 @@
+FROM registry.fedoraproject.org/fedora:latest
+
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+RUN dnf install -y \
+        bash \
+        dbus-tools \
+        findutils \
+        git \
+        mesa-libEGL \
+        mesa-libGL \
+        procps-ng \
+        python3 \
+        python3-pip \
+        python3-devel \
+        qt6-qtbase \
+        qt6-qtbase-gui \
+        qt6-qtwayland \
+        shadow-utils \
+        sudo \
+        which \
+    && dnf clean all
+
+RUN groupadd --gid "${USER_GID}" "${USERNAME}" \
+    && useradd --uid "${USER_UID}" --gid "${USER_GID}" -m "${USERNAME}" \
+    && mkdir -p "/run/user/${USER_UID}" \
+    && chown "${USER_UID}:${USER_GID}" "/run/user/${USER_UID}" \
+    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${USERNAME}" \
+    && chmod 0440 "/etc/sudoers.d/${USERNAME}"
+
+WORKDIR /workspaces/biometrics-protocol
+
+COPY requirements.txt /tmp/requirements.txt
+RUN python3 -m pip install --no-cache-dir --upgrade pip \
+    && python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
+
+USER "${USERNAME}"

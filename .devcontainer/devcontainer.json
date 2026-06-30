@@ -1,0 +1,42 @@
+{
+  "name": "biometrics-protocol",
+  "build": {
+    "dockerfile": "Containerfile",
+    "context": "..",
+    "args": {
+      "USERNAME": "vscode",
+      "USER_UID": "1000",
+      "USER_GID": "1000"
+    }
+  },
+  "workspaceFolder": "/workspaces/biometrics-protocol",
+  "containerUser": "vscode",
+  "remoteUser": "vscode",
+  "runArgs": [
+    "--userns=keep-id",
+    "--net=host",
+    "--ipc=host",
+    "--security-opt=label=disable",
+    "--volume=${localEnv:XDG_RUNTIME_DIR}/${localEnv:WAYLAND_DISPLAY}:/run/user/1000/${localEnv:WAYLAND_DISPLAY}",
+    "--volume=/run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro"
+  ],
+  "containerEnv": {
+    "QT_QPA_PLATFORM": "wayland",
+    "XDG_RUNTIME_DIR": "/run/user/1000",
+    "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
+    "DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/run/dbus/system_bus_socket"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.debugpy"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "postCreateCommand": "python3 -m pip install --user -r /workspaces/biometrics-protocol/requirements.txt"
+}
