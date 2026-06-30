@@ -1,8 +1,6 @@
 import argparse
 import asyncio
 
-from bleak import BleakScanner
-
 
 HEART_RATE_SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb"
 
@@ -56,6 +54,13 @@ def format_device(device, advertisement):
 
 
 async def scan(timeout, name_filter, heart_rate_only):
+    try:
+        from bleak import BleakScanner
+    except ModuleNotFoundError as exc:
+        if exc.name == "bleak":
+            raise RuntimeError("bleak is not installed. Try: python3 -m pip install -r requirements.txt") from exc
+        raise
+
     print(f"Scanning for {timeout:g} seconds...")
     discovered = await BleakScanner.discover(timeout=timeout, return_adv=True)
 
@@ -74,7 +79,11 @@ async def scan(timeout, name_filter, heart_rate_only):
 
 def main():
     args = parse_args()
-    matches = asyncio.run(scan(args.timeout, args.name, args.heart_rate_only))
+    try:
+        matches = asyncio.run(scan(args.timeout, args.name, args.heart_rate_only))
+    except RuntimeError as exc:
+        print(exc)
+        return 1
 
     if not matches:
         print("No matching BLE devices found.")

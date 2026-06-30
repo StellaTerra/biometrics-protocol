@@ -1,16 +1,12 @@
 import argparse
 import asyncio
-from time import monotonic
 
-from bleak import BleakClient
-from bleakheart import HeartRate
-
-from scan import HEART_RATE_SERVICE_UUID, scan
+from polar import PolarH10Stream
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Connect to a BLE heart-rate sensor and print live samples."
+        description="Connect to a BLE heart-rate sensor and print live heartbeat events."
     )
     parser.add_argument(
         "--name",
@@ -37,80 +33,48 @@ def parse_args():
     return parser.parse_args()
 
 
-def heart_rate_callback(start_time):
-    def callback(frame):
-        _kind, timestamp_ns, heart_rate, _energy = frame
-        bpm, rr_ms = heart_rate
-        elapsed = monotonic() - start_time
-        timestamp_s = timestamp_ns / 1_000_000_000
-        print(
-            f"{elapsed:6.1f}s  bpm={bpm:3}  rr={rr_ms:4} ms  sensor_time={timestamp_s:.3f}"
-        )
-
-    return callback
-
-
-async def find_heart_rate_device(address, name, scan_timeout):
-    matches = await scan(
-        timeout=scan_timeout,
-        name_filter=None if address else name,
-        heart_rate_only=False,
+async def stream_heart_rate(args):
+    stream = PolarH10Stream(
+        name=args.name,
+        address=args.address,
+        scan_timeout=args.scan_timeout,
     )
 
-    if address:
-        address = address.casefold()
-        matches = [
-            (device, advertisement)
-            for device, advertisement in matches
-            if device.address.casefold() == address
-        ]
+    def on_status(status):
+        print(f"sensor_status={status}")
 
-    heart_rate_matches = [
-        (device, advertisement)
-        for device, advertisement in matches
-        if HEART_RATE_SERVICE_UUID in {uuid.casefold() for uuid in advertisement.service_uuids}
-    ]
-
-    return (heart_rate_matches or matches)[0] if matches else None
-
-
-async def stream_heart_rate(device, duration):
-    print(f"Connecting to {device.name or '(unnamed)'} at {device.address}...")
-    async with BleakClient(device) as client:
-        print(f"Connected: {client.is_connected}")
-        print(f"Streaming heart-rate data for {duration:g} seconds...")
-
-        heartrate = HeartRate(
-            client,
-            callback=heart_rate_callback(monotonic()),
-            instant_rate=True,
-            unpack=True,
+    def on_heartbeat(heartbeat):
+        bpm = f"{heartbeat.derived_bpm:3}" if heartbeat.derived_bpm is not None else " --"
+        rr = f"{heartbeat.rr_ms:4}" if heartbeat.rr_ms is not None else "  --"
+        sensor_time = (
+            f"{heartbeat.sensor_time_s:.3f}"
+            if heartbeat.sensor_time_s is not None
+            else "unknown"
+        )
+        print(
+            f"{heartbeat.t_monotonic_s:6.1f}s  bpm={bpm}  rr={rr} ms  sensor_time={sensor_time}"
         )
 
-        await heartrate.start_notify()
-        try:
-            await asyncio.sleep(duration)
-        finally:
-            if client.is_connected:
-                await heartrate.stop_notify()
+    await stream.connect(on_heartbeat=on_heartbeat, on_status=on_status)
+    print(f"Streaming heartbeats for {args.duration:g} seconds...")
+    try:
+        await asyncio.sleep(args.duration)
+    finally:
+        await stream.disconnect()
 
 
 async def run():
     args = parse_args()
-    result = await find_heart_rate_device(args.address, args.name, args.scan_timeout)
-
-    if result is None:
-        print("No matching BLE heart-rate device found.")
-        return 1
-
-    device, _advertisement = result
-    await stream_heart_rate(device, args.duration)
+    await stream_heart_rate(args)
     return 0
 
 
 def main():
     try:
         return asyncio.run(run())
+    except RuntimeError as exc:
+        print(exc)
+        return 1
     except KeyboardInterrupt:
         print("Interrupted.")
         return 130

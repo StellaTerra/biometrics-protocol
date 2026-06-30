@@ -25,4 +25,4 @@ heart-rate:
 	$(PYTHON) src/heart_rate.py --name "$(HEART_RATE_NAME)" --scan-timeout $(HEART_RATE_SCAN_TIMEOUT) --duration $(HEART_RATE_DURATION)
 
 check:
-	$(PYTHON) -m py_compile qt_smoke_test.py src/main.py src/client.py src/scan.py src/heart_rate.py
+	$(PYTHON) -m py_compile qt_smoke_test.py src/main.py src/client.py src/scan.py src/heart_rate.py src/protocol.py src/session_store.py src/polar.py
