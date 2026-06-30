@@ -1,9 +1,6 @@
 import sys
-import asyncio
-from bleak import BleakScanner, BleakClient
-from bleakheart import HeartRate
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QLabel, QMainWindow
+from PySide6.QtWidgets import QApplication, QMainWindow
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -11,11 +8,13 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Heart Rate Monitor")
         self.setGeometry(100, 100, 400, 300)
 
-async def main():
+
+def main():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    await app.exec()
+    return app.exec()
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(main())
